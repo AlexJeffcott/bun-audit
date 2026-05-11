@@ -1,0 +1,5 @@
+node_modules/
+.cache/
+audit*.json
+*.tsbuildinfo
+.DS_Store

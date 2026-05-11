@@ -1,0 +1,16 @@
+{
+  "name": "bun-audit",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "bun-audit": "src/index.ts",
+    "bun-audit-report": "src/report.ts"
+  },
+  "scripts": {
+    "audit": "bun src/index.ts",
+    "report": "bun src/report.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
