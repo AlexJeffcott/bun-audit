@@ -17,7 +17,7 @@ async function safe<T>(label: string, errs: string[], fn: () => Promise<T | null
 
 export async function composeRecord(ref: PackageRef): Promise<PackageRecord> {
   const errors: string[] = [];
-  const npm = await safe("npm", errors, () => fetchNpmSignals(ref.name, ref.version));
+  const npm = await safe("npm", errors, () => fetchNpmSignals(ref.name, ref.version, ref.lockfile_integrity));
 
   const owner = npm?.repository_owner ?? null;
   const repo = npm?.repository_repo ?? null;
@@ -49,6 +49,8 @@ export function rollup(lockfilePath: string, records: PackageRecord[]): ProjectR
   let archived = 0;
   let withCves = 0;
   let deprecated = 0;
+  let integrityMismatch = 0;
+  let integrityUnverifiable = 0;
 
   for (const r of records) {
     if (r.direct) direct++;
@@ -61,6 +63,8 @@ export function rollup(lockfilePath: string, records: PackageRecord[]): ProjectR
     if (r.github?.repo_archived === true) archived++;
     if ((r.osv?.unpatched_open_advisories ?? 0) > 0) withCves++;
     if (r.npm?.deprecated) deprecated++;
+    if (r.npm?.integrity_matches_lockfile === false) integrityMismatch++;
+    if (r.npm?.integrity_matches_lockfile === null && r.lockfile_integrity !== null) integrityUnverifiable++;
   }
 
   return {
@@ -77,5 +81,7 @@ export function rollup(lockfilePath: string, records: PackageRecord[]): ProjectR
     packages_archived: archived,
     packages_with_open_cves: withCves,
     packages_deprecated: deprecated,
+    packages_integrity_mismatch: integrityMismatch,
+    packages_integrity_unverifiable: integrityUnverifiable,
   };
 }

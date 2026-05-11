@@ -135,6 +135,10 @@ export async function parseLockfile(path: string): Promise<ParsedLockfile> {
     };
     const declaredCount = Object.keys(declared).length;
 
+    // entry[3] is the tarball integrity (sha512-…). Some entries (workspaces,
+    // git deps) don't have it; absence is not an error.
+    const integrity = typeof entry[3] === "string" ? entry[3] : null;
+
     out.push({
       name,
       version,
@@ -143,6 +147,7 @@ export async function parseLockfile(path: string): Promise<ParsedLockfile> {
       importers_in_tree: importerCounts.get(name) ?? 0,
       declared_deps_count: declaredCount,
       is_workspace: false,
+      lockfile_integrity: integrity,
     });
   }
 

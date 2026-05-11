@@ -21,14 +21,18 @@ type RegistryVersionEntry = {
   deprecated?: string;
   repository?: { type?: string; url?: string } | string;
   license?: string;
-  dist?: { attestations?: unknown };
+  dist?: { attestations?: unknown; integrity?: string; shasum?: string };
   // Many other fields exist (description, scripts, dependencies, types, etc.)
   // but the audit doesn't read them, so they are dropped before caching.
 };
 
 // Slim shape that lands on disk. The full versions map is replaced by the
-// minimal per-version metadata we actually consume.
+// minimal per-version metadata we actually consume. `_schema` lets us
+// invalidate older slim layouts without manual cache busting.
+const SLIM_SCHEMA = 2;
+
 type RegistryDocSlim = {
+  _schema: number;
   name: string;
   maintainer_names: string[];
   repository_url: string | null;
@@ -47,13 +51,19 @@ function slimRegistryDoc(doc: RegistryDoc): RegistryDocSlim {
     if (meta.deprecated) slim.deprecated = meta.deprecated;
     if (meta.repository) slim.repository = meta.repository;
     if (typeof meta.license === "string") slim.license = meta.license;
-    if (meta.dist && (meta.dist as { attestations?: unknown }).attestations) {
-      slim.dist = { attestations: true };
+    const dist = meta.dist;
+    if (dist) {
+      const slimDist: NonNullable<RegistryVersionEntry["dist"]> = {};
+      if (dist.attestations) slimDist.attestations = true;
+      if (typeof dist.integrity === "string") slimDist.integrity = dist.integrity;
+      if (typeof dist.shasum === "string") slimDist.shasum = dist.shasum;
+      if (Object.keys(slimDist).length > 0) slim.dist = slimDist;
     }
     versions_meta[v] = slim;
   }
   const repoTop = typeof doc.repository === "string" ? doc.repository : (doc.repository?.url ?? null);
   return {
+    _schema: SLIM_SCHEMA,
     name: doc.name,
     maintainer_names: (doc.maintainers ?? []).map((m) => m.name),
     repository_url: repoTop,
@@ -97,7 +107,8 @@ function daysBetween(a: Date, b: Date): number {
 
 async function fetchRegistry(name: string): Promise<RegistryDocSlim | null> {
   const cached = await registryCache.get<RegistryDocSlim>(name);
-  if (cached) return cached;
+  if (cached && cached._schema === SLIM_SCHEMA) return cached;
+  // Older schema or no cache: refetch.
   const url = `https://registry.npmjs.org/${name}`;
   const res = await fetch(url, { headers: { accept: "application/json" } });
   if (!res.ok) return null;
@@ -119,7 +130,11 @@ async function fetchWeeklyDownloads(name: string): Promise<number | null> {
   return data.downloads;
 }
 
-export async function fetchNpmSignals(name: string, version: string): Promise<Sourced<NpmSignals> | null> {
+export async function fetchNpmSignals(
+  name: string,
+  version: string,
+  lockfileIntegrity: string | null,
+): Promise<Sourced<NpmSignals> | null> {
   const doc = await fetchRegistry(name);
   if (!doc) return null;
 
@@ -175,6 +190,10 @@ export async function fetchNpmSignals(name: string, version: string): Promise<So
   const versionMeta = versionsObj[version] ?? {};
   const repoFromVersion = parseRepoUrl(versionMeta.repository) ?? parseRepoUrl(doc.repository_url);
   const hasProvenance = Boolean(versionMeta.dist && (versionMeta.dist as { attestations?: unknown }).attestations);
+  const distIntegrity = (versionMeta.dist && typeof versionMeta.dist.integrity === "string") ? versionMeta.dist.integrity : null;
+  const distShasum = (versionMeta.dist && typeof versionMeta.dist.shasum === "string") ? versionMeta.dist.shasum : null;
+  const integrityMatches =
+    distIntegrity !== null && lockfileIntegrity !== null ? distIntegrity === lockfileIntegrity : null;
 
   return {
     _source: "registry.npmjs.org",
@@ -191,6 +210,9 @@ export async function fetchNpmSignals(name: string, version: string): Promise<So
     has_provenance: hasProvenance,
     license: (typeof versionMeta.license === "string" ? versionMeta.license : null) ?? doc.license,
     deprecated: versionMeta.deprecated ?? doc.deprecated ?? null,
+    npm_dist_integrity: distIntegrity,
+    npm_dist_shasum: distShasum,
+    integrity_matches_lockfile: integrityMatches,
     versions_total: versionEntries.length,
     releases_12mo: releases12,
     major_bumps_24mo: majorBumps24,

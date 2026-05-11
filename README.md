@@ -44,7 +44,7 @@ Run `bun scripts/migrate-cache.ts` if you have older cache files and want to rol
 
 | Source | Fields it supplies |
 | --- | --- |
-| `registry.npmjs.org` | maintainers, version `time` map, declared deps, repository URL, deprecated flag, provenance, license, full release history (releases per 12mo, major bumps per 24mo, mean days between releases) |
+| `registry.npmjs.org` | maintainers, version `time` map, declared deps, repository URL, deprecated flag, provenance, license, full release history (releases per 12mo, major bumps per 24mo, mean days between releases), tarball integrity (sha512) and shasum, plus comparison against the lockfile-recorded integrity |
 | `api.npmjs.org/downloads` | weekly downloads |
 | `api.deps.dev` | OpenSSF Scorecard overall + sub-scores (Maintained, Code-Review, Contributors, Dependency-Update-Tool) when published upstream |
 | `packages.ecosyste.ms` | dependent packages and dependent repos counts, monthly downloads |

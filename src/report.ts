@@ -69,6 +69,18 @@ const ALL_COLUMNS: Record<string, ColumnSpec> = {
   scorecard: { key: "scorecard", header: "score", get: (p) => p.depsdev?.scorecard_overall, align: "right" },
   maintained: { key: "maintained", header: "maint-sc", get: (p) => p.depsdev?.scorecard_maintained, align: "right" },
 
+  integrity: {
+    key: "integrity",
+    header: "intg",
+    get: (p) => {
+      const m = p.npm?.integrity_matches_lockfile;
+      if (m === true) return "ok";
+      if (m === false) return "MISMATCH";
+      if (p.lockfile_integrity === null) return "no-lock";
+      return "no-reg";
+    },
+  },
+
   cves_total: { key: "cves_total", header: "cve-tot", get: (p) => p.osv?.advisories_total, align: "right" },
   cves_unpatched: { key: "cves_unpatched", header: "cve-unp", get: (p) => p.osv?.unpatched_open_advisories, align: "right" },
 

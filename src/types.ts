@@ -6,6 +6,7 @@ export type PackageRef = {
   importers_in_tree: number;
   declared_deps_count: number;
   is_workspace: boolean;
+  lockfile_integrity: string | null;
 };
 
 export type Sourced<T> = T & { _source: string; _fetched_at: string };
@@ -23,6 +24,9 @@ export type NpmSignals = {
   has_provenance: boolean | null;
   license: string | null;
   deprecated: string | null;
+  npm_dist_integrity: string | null;
+  npm_dist_shasum: string | null;
+  integrity_matches_lockfile: boolean | null;
   versions_total: number | null;
   releases_12mo: number | null;
   major_bumps_24mo: number | null;
@@ -119,4 +123,6 @@ export type ProjectRollup = {
   packages_archived: number;
   packages_with_open_cves: number;
   packages_deprecated: number;
+  packages_integrity_mismatch: number;
+  packages_integrity_unverifiable: number;
 };
