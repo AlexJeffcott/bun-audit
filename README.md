@@ -36,7 +36,9 @@ Options:
 
 A GitHub token is read from `GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token`.
 
-A disk cache lives in `./.cache/`. Immutable per-version data is cached for 7 days; mutable per-package data for 24 hours. Delete the directory to bust.
+A disk cache lives in `./.cache/` and is tracked in version control so re-runs on a fresh clone benefit from previously-fetched data. Each cache file embeds its own `_cached_at` timestamp, so freshness survives `git checkout` (which would otherwise reset filesystem mtimes). Immutable per-version data is cached for 7 days; mutable per-package data for 24 hours.
+
+Run `bun scripts/migrate-cache.ts` if you have older cache files and want to roll them into the current wrapped format.
 
 ## Sources
 

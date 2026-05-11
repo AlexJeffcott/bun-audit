@@ -1,0 +1,1 @@
+{"_cached_at":1778496678867.6465,"v":{"projectKey":{"id":"github.com/borewit/text-codec"},"openIssuesCount":3,"starsCount":2,"forksCount":4,"license":"MIT","description":"Lightweight, dependency-free TextEncoder/TextDecoder polyfill supporting UTF-8, UTF-16LE, ASCII, Latin-1, and Windows-1252 for engines like Hermes.","homepage":""}}

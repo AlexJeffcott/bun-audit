@@ -4,22 +4,65 @@ import type { NpmSignals, Sourced } from "../types.ts";
 const registryCache = new Cache("npm-registry", DAY);
 const downloadsCache = new Cache("npm-downloads", DAY);
 
+// Full registry document — the wire shape from registry.npmjs.org. We never
+// cache this directly; we slim it before writing to disk.
 type RegistryDoc = {
   name: string;
   "dist-tags"?: { latest?: string };
-  versions?: Record<string, {
-    deprecated?: string;
-    dependencies?: Record<string, string>;
-    repository?: { type?: string; url?: string } | string;
-    license?: string;
-    dist?: { attestations?: unknown };
-  }>;
+  versions?: Record<string, RegistryVersionEntry>;
   time?: Record<string, string>;
   maintainers?: Array<{ name: string; email?: string }>;
   repository?: { type?: string; url?: string } | string;
   license?: string;
   deprecated?: string;
 };
+
+type RegistryVersionEntry = {
+  deprecated?: string;
+  repository?: { type?: string; url?: string } | string;
+  license?: string;
+  dist?: { attestations?: unknown };
+  // Many other fields exist (description, scripts, dependencies, types, etc.)
+  // but the audit doesn't read them, so they are dropped before caching.
+};
+
+// Slim shape that lands on disk. The full versions map is replaced by the
+// minimal per-version metadata we actually consume.
+type RegistryDocSlim = {
+  name: string;
+  maintainer_names: string[];
+  repository_url: string | null;
+  license: string | null;
+  deprecated: string | null;
+  time: Record<string, string>;
+  versions_meta: Record<string, RegistryVersionEntry>;
+};
+
+function slimRegistryDoc(doc: RegistryDoc): RegistryDocSlim {
+  const versions_meta: Record<string, RegistryVersionEntry> = {};
+  const fullVersions = doc.versions ?? {};
+  for (const [v, meta] of Object.entries(fullVersions)) {
+    // Keep only the per-version fields the audit consumes.
+    const slim: RegistryVersionEntry = {};
+    if (meta.deprecated) slim.deprecated = meta.deprecated;
+    if (meta.repository) slim.repository = meta.repository;
+    if (typeof meta.license === "string") slim.license = meta.license;
+    if (meta.dist && (meta.dist as { attestations?: unknown }).attestations) {
+      slim.dist = { attestations: true };
+    }
+    versions_meta[v] = slim;
+  }
+  const repoTop = typeof doc.repository === "string" ? doc.repository : (doc.repository?.url ?? null);
+  return {
+    name: doc.name,
+    maintainer_names: (doc.maintainers ?? []).map((m) => m.name),
+    repository_url: repoTop,
+    license: typeof doc.license === "string" ? doc.license : null,
+    deprecated: doc.deprecated ?? null,
+    time: doc.time ?? {},
+    versions_meta,
+  };
+}
 
 function parseRepoUrl(repo: unknown): { url: string; owner: string | null; repo: string | null } | null {
   if (!repo) return null;
@@ -52,15 +95,16 @@ function daysBetween(a: Date, b: Date): number {
   return Math.abs(a.getTime() - b.getTime()) / DAY;
 }
 
-async function fetchRegistry(name: string): Promise<RegistryDoc | null> {
-  const cached = await registryCache.get<RegistryDoc>(name);
+async function fetchRegistry(name: string): Promise<RegistryDocSlim | null> {
+  const cached = await registryCache.get<RegistryDocSlim>(name);
   if (cached) return cached;
   const url = `https://registry.npmjs.org/${name}`;
   const res = await fetch(url, { headers: { accept: "application/json" } });
   if (!res.ok) return null;
-  const doc = (await res.json()) as RegistryDoc;
-  await registryCache.set(name, doc);
-  return doc;
+  const full = (await res.json()) as RegistryDoc;
+  const slim = slimRegistryDoc(full);
+  await registryCache.set(name, slim);
+  return slim;
 }
 
 async function fetchWeeklyDownloads(name: string): Promise<number | null> {
@@ -79,8 +123,8 @@ export async function fetchNpmSignals(name: string, version: string): Promise<So
   const doc = await fetchRegistry(name);
   if (!doc) return null;
 
-  const time = doc.time ?? {};
-  const versionsObj = doc.versions ?? {};
+  const time = doc.time;
+  const versionsObj = doc.versions_meta;
   const versionEntries = Object.keys(versionsObj)
     .map((v) => ({ v, t: time[v] }))
     .filter((e) => typeof e.t === "string")
@@ -129,7 +173,7 @@ export async function fetchNpmSignals(name: string, version: string): Promise<So
   };
 
   const versionMeta = versionsObj[version] ?? {};
-  const repoFromVersion = parseRepoUrl(versionMeta.repository) ?? parseRepoUrl(doc.repository);
+  const repoFromVersion = parseRepoUrl(versionMeta.repository) ?? parseRepoUrl(doc.repository_url);
   const hasProvenance = Boolean(versionMeta.dist && (versionMeta.dist as { attestations?: unknown }).attestations);
 
   return {
@@ -138,14 +182,14 @@ export async function fetchNpmSignals(name: string, version: string): Promise<So
     latest_publish_iso: latest ? latest.date.toISOString() : null,
     days_since_latest_publish: latest ? Math.floor((now.getTime() - latest.date.getTime()) / DAY) : null,
     version_publish_iso: versionTime ? versionTime.toISOString() : null,
-    npm_maintainers_count: doc.maintainers?.length ?? null,
-    npm_maintainers: doc.maintainers?.map((m) => m.name) ?? null,
+    npm_maintainers_count: doc.maintainer_names.length,
+    npm_maintainers: doc.maintainer_names,
     weekly_downloads: await fetchWeeklyDownloads(name),
     repository_url: repoFromVersion?.url ?? null,
     repository_owner: repoFromVersion?.owner ?? null,
     repository_repo: repoFromVersion?.repo ?? null,
     has_provenance: hasProvenance,
-    license: (typeof versionMeta.license === "string" ? versionMeta.license : null) ?? (typeof doc.license === "string" ? doc.license : null),
+    license: (typeof versionMeta.license === "string" ? versionMeta.license : null) ?? doc.license,
     deprecated: versionMeta.deprecated ?? doc.deprecated ?? null,
     versions_total: versionEntries.length,
     releases_12mo: releases12,

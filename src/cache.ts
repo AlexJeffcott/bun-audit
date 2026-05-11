@@ -3,6 +3,11 @@ import { join } from "node:path";
 
 const CACHE_DIR = new URL("../.cache/", import.meta.url).pathname;
 
+// Stored wrapper: {_cached_at: epochMs, v: <payload>}. The timestamp lives in
+// the file content rather than filesystem mtime so that TTL survives git
+// checkout (where mtimes reset to clone time).
+type CacheEntry<T> = { _cached_at: number; v: T };
+
 export class Cache {
   constructor(private namespace: string, private ttlMs: number) {
     const dir = join(CACHE_DIR, namespace);
@@ -18,10 +23,13 @@ export class Cache {
     const path = this.pathFor(key);
     const file = Bun.file(path);
     if (!(await file.exists())) return null;
-    const stat = await file.stat();
-    if (Date.now() - stat.mtimeMs > this.ttlMs) return null;
     try {
-      return (await file.json()) as T;
+      const parsed = (await file.json()) as unknown;
+      if (!parsed || typeof parsed !== "object") return null;
+      const entry = parsed as Partial<CacheEntry<T>>;
+      if (typeof entry._cached_at !== "number" || !("v" in entry)) return null;
+      if (Date.now() - entry._cached_at > this.ttlMs) return null;
+      return entry.v as T;
     } catch {
       return null;
     }
@@ -29,7 +37,8 @@ export class Cache {
 
   async set<T>(key: string, value: T): Promise<void> {
     const path = this.pathFor(key);
-    await Bun.write(path, JSON.stringify(value));
+    const wrapper: CacheEntry<T> = { _cached_at: Date.now(), v: value };
+    await Bun.write(path, JSON.stringify(wrapper));
   }
 }
 

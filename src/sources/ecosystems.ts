@@ -42,7 +42,19 @@ export async function fetchEcosystemsSignals(name: string): Promise<EcosystemsSi
       headers: { accept: "application/json" },
     });
     if (!res.ok) return null;
-    data = (await res.json()) as EcosystemsPkg;
+    const full = (await res.json()) as EcosystemsPkg & Record<string, unknown>;
+    // Project to only the fields the audit reads — the full response carries
+    // megabytes of repo_metadata we never touch.
+    data = {
+      name: full.name,
+      latest_release_published_at: full.latest_release_published_at,
+      downloads: full.downloads,
+      downloads_period: full.downloads_period,
+      dependent_packages_count: full.dependent_packages_count,
+      dependent_repos_count: full.dependent_repos_count,
+      average_release_frequency: full.average_release_frequency,
+      versions_count: full.versions_count,
+    };
     await cache.set(name, data);
   }
   return {

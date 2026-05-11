@@ -1,0 +1,1 @@
+{"_cached_at":1778497048779.0098,"v":{"projectKey":{"id":"github.com/fabiospampinato/fast-string-truncated-width"},"openIssuesCount":2,"starsCount":22,"forksCount":3,"license":"MIT","description":"A fast function for calculating where a string should be truncated, given an optional width limit and an ellipsis string.","homepage":""}}
