@@ -1,0 +1,1 @@
+{"_cached_at":1778519360644,"v":{"projectKey":{"id":"github.com/gruntjs/node-exit-x"},"openIssuesCount":0,"starsCount":1,"forksCount":1,"license":"MIT","description":"Fork of a replacement for process.exit that ensures stdio are fully drained before exiting.","homepage":""}}

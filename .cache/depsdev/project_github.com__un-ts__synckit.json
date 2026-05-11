@@ -1,0 +1,1 @@
+{"_cached_at":1778522701264,"v":{"projectKey":{"id":"github.com/un-ts/synckit"},"openIssuesCount":6,"starsCount":266,"forksCount":16,"license":"MIT","description":"Perform async work synchronously in Node.js/Bun using `worker_threads` with first-class TypeScript and Yarn P'n'P support.","homepage":"https://npm.im/synckit"}}

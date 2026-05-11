@@ -1,0 +1,1 @@
+{"_cached_at":1778520004646,"v":{"projectKey":{"id":"github.com/mswjs/is-node-process"},"openIssuesCount":2,"starsCount":12,"forksCount":4,"license":"","description":"Reliably determines if the code is running in Node.js. Treats Jest, React Native, Electron, and others like Node.js.","homepage":"https://npm.im/is-node-process"}}

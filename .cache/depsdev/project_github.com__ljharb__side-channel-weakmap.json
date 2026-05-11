@@ -1,0 +1,1 @@
+{"_cached_at":1778522541928,"v":{"projectKey":{"id":"github.com/ljharb/side-channel-weakmap"},"openIssuesCount":1,"starsCount":1,"forksCount":2,"license":"MIT","description":"Store information about any JS value in a side channel, using a WeakMap for objects and a Map for primitives.","homepage":""}}

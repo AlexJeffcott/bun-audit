@@ -1,0 +1,1 @@
+{"_cached_at":1778517345886,"v":{"projectKey":{"id":"github.com/open-draft/deferred-promise"},"openIssuesCount":0,"starsCount":85,"forksCount":5,"license":"MIT","description":"Promise A+ compatible abstraction that defers resolving/rejecting promises to another closure.","homepage":"https://npmx.dev/package/@open-draft/deferred-promise"}}

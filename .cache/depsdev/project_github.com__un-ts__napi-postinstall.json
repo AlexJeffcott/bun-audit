@@ -1,0 +1,1 @@
+{"_cached_at":1778520625964,"v":{"projectKey":{"id":"github.com/un-ts/napi-postinstall"},"openIssuesCount":9,"starsCount":7,"forksCount":3,"license":"MIT","description":"The `postinstall` script helper for handling napi native bindings in legacy `npm` versions, see also https://github.com/npm/cli/issues/4828","homepage":"https://napi-postinstall.vercel.app"}}
