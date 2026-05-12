@@ -142,13 +142,43 @@ export async function parseLockfile(path: string): Promise<ParsedLockfile> {
     out.push({
       name,
       version,
-      direct: directNames.has(name),
+      direct: false, // assigned below per-name to the highest-version entry
       depth: 0, // populated below
       importers_in_tree: importerCounts.get(name) ?? 0,
       declared_deps_count: declaredCount,
       is_workspace: false,
       lockfile_integrity: integrity,
     });
+  }
+
+  // A workspace `package.json` declares a name + range. The lockfile resolves
+  // that to a specific version, but the resolution isn't recorded directly;
+  // the same name can appear at several versions when transitive consumers
+  // pin different ranges. Mark only the highest-version entry per declared
+  // name as direct — that is the version the resolver picks for a top-level
+  // range like "^14.0.0".
+  const versionsByName = new Map<string, PackageRef[]>();
+  for (const p of out) {
+    const arr = versionsByName.get(p.name) ?? [];
+    arr.push(p);
+    versionsByName.set(p.name, arr);
+  }
+  const cmpSemver = (a: string, b: string): number => {
+    const pa = a.match(/^(\d+)\.(\d+)\.(\d+)/);
+    const pb = b.match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!pa || !pb) return a.localeCompare(b);
+    for (let i = 1; i <= 3; i++) {
+      const da = Number(pa[i]);
+      const db = Number(pb[i]);
+      if (da !== db) return da - db;
+    }
+    return 0;
+  };
+  for (const dn of directNames) {
+    const candidates = versionsByName.get(dn);
+    if (!candidates || candidates.length === 0) continue;
+    const top = [...candidates].sort((a, b) => cmpSemver(b.version, a.version))[0];
+    top.direct = true;
   }
 
   // Depth: BFS from direct deps using the dependency graph implied by `packages`.

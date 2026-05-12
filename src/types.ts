@@ -69,7 +69,9 @@ export type GithubSignals = {
   commits_12mo: number | null;
   commits_12mo_truncated: boolean;
   top_committer_commit_share_12mo: number | null;
+  top2_committer_commit_share_12mo: number | null;
   top3_committer_commit_share_12mo: number | null;
+  top_committers_12mo: Array<{ login: string; commits: number; share: number }> | null;
   has_discussions_enabled: boolean | null;
 };
 

@@ -76,6 +76,20 @@ Three thresholds in `src/sources/responsiveness.ts` are gut-feel:
 
 These decide bucket boundaries inside the responsiveness classifier. Every bucket is still derived from observable timeline events; the thresholds only control which observable label gets assigned.
 
+## Risk-tier sort
+
+`bun src/report.ts --sort risk` orders rows by a transparent, documented tier rule. Each tier is a single observable signal; a row gets the first label it matches:
+
+1. `unpatched-CVE` — `osv.unpatched_open_advisories > 0`
+2. `integrity-mismatch` — npm registry sha512 differs from the lockfile entry
+3. `archived` — source GitHub repo is archived
+4. `deprecated` — npm package or this version is deprecated
+5. `stale-commit-12mo` — more than 365 days since last commit on the default branch
+6. `solo-committer-12mo` — exactly one distinct commit author in the last 12 months
+7. `ok` — none of the above
+
+Tiebreakers, in order: unpatched-CVE count desc, days-since-last-commit desc, weekly downloads desc, name asc. The tier order is a value call, stated openly. Every tier label maps to one observable; nothing is summed, weighted, or scored.
+
 ## Rate limits and pacing
 
 - GitHub Search is capped at 30/min for authenticated requests. The script throttles search to one call every 2.5 seconds, serialised globally across workers.

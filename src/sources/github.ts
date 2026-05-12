@@ -160,11 +160,13 @@ async function fetchCommitStats(owner: string, name: string, sinceIso: string, r
   commits12: number;
   committers12: number;
   topShare: number | null;
+  top2Share: number | null;
   top3Share: number | null;
+  topCommitters: Array<{ login: string; commits: number; share: number }>;
   truncated: boolean;
 }> {
   const firstPage = repo.defaultBranchRef?.target?.history;
-  if (!firstPage) return { commits12: 0, committers12: 0, topShare: null, top3Share: null, truncated: false };
+  if (!firstPage) return { commits12: 0, committers12: 0, topShare: null, top2Share: null, top3Share: null, topCommitters: [], truncated: false };
   const perAuthor = new Map<string, number>();
   let total = 0;
   const consume = (page: CommitHistory) => {
@@ -192,14 +194,22 @@ async function fetchCommitStats(owner: string, name: string, sinceIso: string, r
   }
   if (hasNext) truncated = true;
 
-  const sorted = [...perAuthor.values()].sort((a, b) => b - a);
-  const top1 = sorted[0] ?? 0;
-  const top3 = sorted.slice(0, 3).reduce((s, n) => s + n, 0);
+  const sortedPairs = [...perAuthor.entries()].sort((a, b) => b[1] - a[1]);
+  const top1 = sortedPairs[0]?.[1] ?? 0;
+  const top2 = sortedPairs.slice(0, 2).reduce((s, [, n]) => s + n, 0);
+  const top3 = sortedPairs.slice(0, 3).reduce((s, [, n]) => s + n, 0);
+  const topCommitters = sortedPairs.slice(0, 5).map(([login, commits]) => ({
+    login,
+    commits,
+    share: total > 0 ? commits / total : 0,
+  }));
   return {
     commits12: total,
     committers12: perAuthor.size,
     topShare: total > 0 ? top1 / total : null,
+    top2Share: total > 0 ? top2 / total : null,
     top3Share: total > 0 ? top3 / total : null,
+    topCommitters,
     truncated,
   };
 }
@@ -305,7 +315,9 @@ export async function fetchGithubSignals(owner: string, name: string): Promise<S
     commits_12mo: stats.commits12,
     commits_12mo_truncated: stats.truncated,
     top_committer_commit_share_12mo: stats.topShare,
+    top2_committer_commit_share_12mo: stats.top2Share,
     top3_committer_commit_share_12mo: stats.top3Share,
+    top_committers_12mo: stats.topCommitters,
     has_discussions_enabled: repo.hasDiscussionsEnabled,
   };
 

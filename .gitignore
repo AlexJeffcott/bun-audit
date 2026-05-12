@@ -1,4 +1,5 @@
 node_modules/
 audit*.json
+audit*.html
 *.tsbuildinfo
 .DS_Store
